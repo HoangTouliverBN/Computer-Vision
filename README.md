@@ -60,7 +60,6 @@ Các bước:
 
 - Đơn giản, dễ implement.
 - Chạy nhanh.
-- Dễ giải thích trong báo cáo.
 - Tốt với ảnh bình thường.
 
 Nhược điểm:
