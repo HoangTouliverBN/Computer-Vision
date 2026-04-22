@@ -23,10 +23,10 @@ Bang ket qua:
 
 | Anh | Loai anh | So hat dem duoc | Vung bi loai | Threshold | Foreground ratio | Component sau clean |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| `1_wIXlvBeAFtNVgJd49VObgQ.png` | Binh thuong | 111 | 56 | Otsu | 0.2920 | 124 |
-| `1_wIXlvBeAFtNVgJd49VObgQ.png_Salt_Pepper_Noise1.png` | Nhieu muoi tieu | 111 | 55 | Otsu | 0.2875 | 124 |
-| `1_wIXlvBeAFtNVgJd49VObgQ_sinus.png` | Nen khong deu | 143 | 58 | Adaptive | 0.4578 | 120 |
-| `1_zd6ypc20QAIFMzrbCmJRMg.png` | Tuong phan thap | 110 | 38 | Otsu | 0.1513 | 95 |
+| `rice_normal.png` | Binh thuong | 111 | 56 | Otsu | 0.2920 | 124 |
+| `rice_salt_pepper_noise.png` | Nhieu muoi tieu | 111 | 55 | Otsu | 0.2875 | 124 |
+| `rice_uneven_background.png` | Nen khong deu | 143 | 58 | Adaptive | 0.4578 | 120 |
+| `rice_low_contrast.png` | Tuong phan thap | 110 | 38 | Otsu | 0.1513 | 95 |
 
 Nhan xet nhanh:
 

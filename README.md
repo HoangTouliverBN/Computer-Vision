@@ -295,10 +295,10 @@ pip install -r requirements.txt
 ```text
 Assigment/
 |-- Dataset/
-|   |-- 1_wIXlvBeAFtNVgJd49VObgQ.png
-|   |-- 1_wIXlvBeAFtNVgJd49VObgQ.png_Salt_Pepper_Noise1.png
-|   |-- 1_wIXlvBeAFtNVgJd49VObgQ_sinus.png
-|   `-- 1_zd6ypc20QAIFMzrbCmJRMg.png
+|   |-- rice_normal.png
+|   |-- rice_salt_pepper_noise.png
+|   |-- rice_uneven_background.png
+|   `-- rice_low_contrast.png
 |
 |-- src/
 |   |-- main.py
