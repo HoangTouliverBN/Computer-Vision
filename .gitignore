@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 pytest-cache-files-*/
+.test-tmp/
 .mypy_cache/
 .ruff_cache/
 
@@ -20,6 +21,7 @@ output/**/*.jpg
 output/**/*.jpeg
 output/**/*.csv
 !output/**/.gitkeep
+logs/
 
 # OS/editor files
 .DS_Store

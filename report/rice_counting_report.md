@@ -1,61 +1,112 @@
-# Bao cao bai toan dem hat gao
+# Báo Cáo Bài Toán Đếm Hạt Gạo
 
-## 1. Gioi thieu
+## 1. Giới thiệu
 
-Tai lieu nay se tong hop phan tich bai toan, pipeline xu ly anh, ket qua thuc nghiem va nhan xet cho bai tap dem hat gao.
+Tài liệu này tổng hợp phân tích bài toán, pipeline xử lý ảnh, kết quả thực nghiệm và nhận xét cho bài tập đếm hạt gạo trong ảnh.
 
-## 2. Phan tich du lieu
+Mục tiêu của bài toán là đếm số lượng hạt gạo trong từng ảnh đầu vào bằng một pipeline xử lý ảnh duy nhất. Pipeline không chỉnh tham số thủ công theo từng ảnh và chỉ nhận tên ảnh làm đầu vào khi chạy xử lý.
 
-- Anh binh thuong
-- Anh nhieu muoi tieu
-- Anh nen khong deu
-- Anh tuong phan thap
+## 2. Phân tích dữ liệu
 
-## 3. Pipeline xu ly
+Bộ dữ liệu gồm 4 trường hợp chính:
 
-Pipeline chinh duoc chon: tien xu ly robust, hieu chinh nen, CLAHE, threshold va watershed.
+- Ảnh bình thường.
+- Ảnh nhiễu muối tiêu.
+- Ảnh nền không đều.
+- Ảnh tương phản thấp.
 
-## 4. Ket qua thuc nghiem
+Các trường hợp này đại diện cho những khó khăn thường gặp trong bài toán phân đoạn ảnh:
 
-Notebook da chay thanh cong tren 4 anh trong `Dataset/`. Ket qua duoc luu tam thoi tai `output/results.csv` va cac anh minh hoa duoc tao trong `output/masks/`, `output/labels/`, `output/contours/`, `output/intermediate/`.
+- Nhiễu nhỏ có thể bị nhận nhầm là hạt gạo.
+- Hạt dính nhau có thể bị đếm thiếu nếu chỉ dùng connected components.
+- Ánh sáng không đều làm threshold toàn cục kém ổn định.
+- Tương phản thấp làm biên hạt yếu và dễ mất vùng foreground.
 
-Bang ket qua:
+## 3. Pipeline xử lý
 
-| Anh | Loai anh | So hat dem duoc | Vung bi loai | Threshold | Foreground ratio | Component sau clean |
+Pipeline chính được chọn là:
+
+Đọc ảnh
+-> Chuyển grayscale
+-> Lọc median
+-> Hiệu chỉnh nền
+-> Tăng tương phản bằng CLAHE
+-> Threshold tự động
+-> Morphology và fill holes
+-> Distance transform
+-> Watershed
+-> Lọc vùng theo hình dạng
+-> Đếm hạt
+
+Pipeline sử dụng Otsu threshold làm lựa chọn mặc định. Nếu mask sau Otsu có tỷ lệ foreground bất thường, pipeline tự động chuyển sang adaptive threshold. Đây vẫn là một pipeline duy nhất vì việc chuyển threshold được quyết định tự động từ đặc trưng của mask, không dựa trên tên ảnh và không chỉnh tay theo từng ảnh.
+
+## 4. Kết quả thực nghiệm
+
+Notebook và script đã chạy thành công trên 4 ảnh trong `Dataset/`. Kết quả tổng hợp được lưu tại `output/results.csv`. Các ảnh minh họa được tạo trong:
+
+- `output/masks/`
+- `output/labels/`
+- `output/contours/`
+- `output/intermediate/`
+
+Bảng kết quả:
+
+| Ảnh | Loại ảnh | Số hạt đếm được | Vùng bị loại | Threshold | Foreground ratio | Component sau clean |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| `gạo_bình_thường.png` | Bình thường | 111 | 56 | Otsu | 0.2920 | 124 |
-| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 111 | 55 | Otsu | 0.2875 | 124 |
-| `gạo_nền_không_đều.png` | Nền không đều | 143 | 58 | Adaptive | 0.4578 | 120 |
-| `gạo_tương_phản_thấp.png` | Tương phản thấp | 110 | 38 | Otsu | 0.1513 | 95 |
+| `gạo_bình_thường.png` | Bình thường | 101 | 45 | Otsu | 0.2905 | 118 |
+| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 105 | 41 | Otsu | 0.2852 | 116 |
+| `gạo_nền_không_đều.png` | Nền không đều | 135 | 39 | Adaptive | 0.4570 | 117 |
+| `gạo_tương_phản_thấp.png` | Tương phản thấp | 102 | 32 | Otsu | 0.1513 | 95 |
 
-Nhan xet nhanh:
+Nhận xét nhanh:
 
-- Anh binh thuong va anh nhieu muoi tieu cho ket qua gan nhau, cho thay median blur va morphology giup pipeline on dinh truoc nhieu muoi tieu.
-- Anh nen khong deu duoc chuyen sang adaptive threshold, dung voi ky vong vi nen sinus lam threshold toan cuc kem on dinh hon.
-- Anh tuong phan thap co foreground ratio thap hon, nhung CLAHE giup hat van duoc tach ra de dem.
-- So vung bi loai cho thay buoc loc hinh dang dang loai nhieu vung khong dat dieu kien area/aspect ratio/solidity.
+- Ảnh bình thường đạt 101 hạt, khớp với số đếm tay dùng làm mốc hiệu chỉnh.
+- Ảnh nhiễu muối tiêu cho kết quả gần ảnh bình thường, cho thấy median blur và morphology giúp pipeline ổn định hơn trước nhiễu muối tiêu.
+- Ảnh nền không đều được chuyển sang adaptive threshold, đúng với kỳ vọng vì nền sáng tối không đều làm threshold toàn cục kém ổn định.
+- Ảnh tương phản thấp có foreground ratio thấp hơn, nhưng CLAHE giúp hạt vẫn được tách ra để đếm.
+- Số vùng bị loại cho thấy bước lọc hình dạng đang loại nhiều vùng không đạt điều kiện về diện tích, tỷ lệ cạnh hoặc solidity.
 
-## 5. Nhan xet
+## 5. Nhận xét chi tiết
 
-### Nhieu
+### Nhiễu
 
-Nhiễu muối tiêu tạo nhiều điểm trắng/đen nhỏ. Pipeline dùng median blur trước threshold và remove small objects sau threshold nên kết quả của ảnh nhiễu muối tiêu vẫn giữ cùng số đếm 111 như ảnh bình thường.
+Nhiễu muối tiêu tạo nhiều điểm trắng hoặc đen nhỏ trên ảnh. Nếu threshold trực tiếp, các điểm nhiễu sáng có thể bị nhận nhầm là hạt gạo nhỏ. Pipeline xử lý bằng median blur trước threshold, sau đó dùng morphology và remove small objects để loại các vùng nhiễu nhỏ. Vì vậy kết quả của ảnh nhiễu muối tiêu là 105, chỉ cao hơn 4 hạt so với ảnh bình thường.
 
-### Hat dinh nhau
+### Hạt dính nhau
 
-Hat gan nhau co the bi gop thanh mot component. Buoc distance transform va watershed tao marker tai cac tam hat de tach cac vung cham nhau. Tuy nhien neu marker qua day thi mot hat co the bi tach qua muc; neu marker qua thua thi cac hat dinh nhau van bi dem thieu.
+Các hạt gạo gần nhau có thể bị gộp thành một component lớn. Nếu chỉ dùng connected components, các vùng này dễ bị đếm thiếu. Pipeline dùng distance transform và watershed để tạo marker tại vùng trung tâm của từng hạt, sau đó tách các vùng chạm nhau.
 
-### Anh sang khong deu
+Tuy nhiên watershed vẫn có rủi ro:
 
-Anh nen sinus la truong hop kho nhat vi nen co vung sang toi manh. Pipeline dung background correction va adaptive threshold fallback. Ket qua dem la 143, cao hon anh binh thuong, nen can kiem tra contour overlay de xac dinh co dem du hay dem nham nen sang.
+- Nếu marker quá dày, một hạt có thể bị tách thành nhiều vùng.
+- Nếu marker quá thưa, các hạt dính nhau vẫn có thể bị đếm thiếu.
+
+### Ánh sáng không đều
+
+Ảnh nền không đều là trường hợp khó nhất vì nền có vùng sáng tối thay đổi mạnh. Pipeline dùng bước hiệu chỉnh nền trước threshold. Sau đó, nếu Otsu tạo mask bất thường, pipeline tự động chuyển sang adaptive threshold.
+
+Kết quả đếm của ảnh nền không đều là 135, cao hơn ảnh bình thường. Điều này cho thấy adaptive threshold giúp giữ lại vùng hạt trong nền khó, nhưng vẫn cần kiểm tra contour overlay để đánh giá có bị đếm nhầm vùng nền sáng hay không.
 
 ### Tương phản thấp
 
-Anh tuong phan thap co foreground ratio 0.1513, thap hon cac anh con lai. CLAHE giup tang tuong phan cuc bo, nhung bien hat co the van yeu. Khi kiem tra overlay, can chu y cac hat o vung toi hoac sat bien anh.
+Ảnh tương phản thấp có foreground ratio 0.1513, thấp hơn các ảnh còn lại. Điều này nghĩa là vùng được tách ra làm hạt gạo chiếm tỷ lệ nhỏ hơn trong ảnh. CLAHE giúp tăng tương phản cục bộ, làm hạt rõ hơn trước khi threshold.
 
-### Loi con lai
+Dù vậy, biên hạt trong ảnh tương phản thấp vẫn có thể yếu. Khi kiểm tra overlay, cần chú ý các hạt ở vùng tối hoặc sát biên ảnh vì chúng dễ bị mất biên hoặc bị lọc bỏ.
 
-- Hat bi cat o bien anh co the bi loai neu dien tich hoac aspect ratio khong dat nguong.
-- Hat qua gan nhau co the bi watershed tach sai.
+### Lỗi còn lại
+
+- Hạt bị cắt ở biên ảnh có thể bị loại nếu diện tích hoặc tỷ lệ cạnh không đạt ngưỡng.
+- Hạt quá gần nhau có thể bị watershed tách sai.
 - Nền không đều có thể tạo foreground giả trong vùng quá sáng.
-- Tham so `min_peak_distance`, `min_grain_area`, `max_grain_area` can duoc tinh chinh neu overlay cho thay dem thieu hoac dem du.
+- Nếu dữ liệu mới khác nhiều về kích thước hạt hoặc độ phân giải, cần chọn lại một bộ tham số chung cho toàn bộ tập ảnh, không chỉnh riêng từng ảnh khi đánh giá.
+
+## 6. Kết luận
+
+Pipeline hiện tại đáp ứng các yêu cầu bắt buộc:
+
+- Sử dụng một pipeline xử lý ảnh duy nhất cho tất cả ảnh.
+- Không chỉnh tham số thủ công theo từng ảnh.
+- Sử dụng threshold tự động gồm Otsu và adaptive fallback.
+- Khi chạy script, đầu vào xử lý chính chỉ là tên ảnh.
+
+Pipeline cho kết quả ổn định với ảnh bình thường, ảnh nhiễu muối tiêu và ảnh tương phản thấp. Trường hợp nền không đều vẫn là trường hợp khó nhất và cần được đánh giá trực quan bằng ảnh contour overlay.

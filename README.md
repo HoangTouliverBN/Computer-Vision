@@ -2,7 +2,7 @@
 
 ## 1. Phân tích bài toán
 
-Bài toán là đếm số hạt gạo trong ảnh bằng các kỹ thuật xử lý ảnh cổ điển. Đầu vào là ảnh grayscale hoặc RGB, đầu ra gồm số lượng hạt gạo, ảnh mask phân đoạn, ảnh contour hoặc label để kiểm tra trực quan.
+Bài toán là đếm số hạt gạo trong ảnh. Đầu vào là ảnh grayscale hoặc RGB, đầu ra gồm số lượng hạt gạo, ảnh mask phân đoạn, ảnh contour hoặc label để kiểm tra trực quan.
 
 Dataset hiện tại có các trường hợp chính:
 
@@ -277,6 +277,16 @@ Notebook này được tổ chức theo từng bước xử lý ảnh. Sau mỗi
 - Watershed/counting: sau `watershed_separation`, `filter_grain_regions`, `count_grains` đều in số label, số vùng accepted/rejected và số hạt cuối cùng.
 - Batch run: sau mỗi lần `run_one_image` đều in dictionary kết quả, lưu output và xuất bảng `output/results.csv`.
 
+### Theo dõi thay đổi tham số
+
+Khi chạy batch toàn bộ ảnh bằng `run_all_images()`, project tự ghi nhật ký local trong `logs/`:
+
+- `logs/parameter_runs.md`: log dễ đọc, nêu tham số thay đổi, ảnh hưởng dự kiến và kết quả từng ảnh.
+- `logs/parameter_runs.csv`: log dạng bảng để so sánh nhiều lần chạy.
+- `logs/latest_run.json`: mốc so sánh cho lần chạy kế tiếp.
+
+Thư mục `logs/` chỉ dùng ở local và đã được đưa vào `.gitignore`. Khi đánh giá, chỉ thay đổi một bộ tham số chung trong `PipelineConfig`, chạy lại toàn bộ ảnh, rồi so sánh log; không chỉnh tham số riêng theo từng ảnh.
+
 Cách chạy:
 
 1. Mở `notebooks/rice_counting_pipeline.ipynb` bằng Jupyter Notebook, JupyterLab hoặc VS Code.
@@ -302,6 +312,7 @@ Assigment/
 |-- src/
 |   |-- main.py
 |   |-- config.py
+|   |-- parameter_log.py
 |   |-- preprocess.py
 |   |-- segment.py
 |   |-- watershed_count.py
@@ -318,6 +329,11 @@ Assigment/
 |   |-- intermediate/
 |   `-- results.csv
 |
+|-- logs/                  # local-only, không commit
+|   |-- parameter_runs.md
+|   |-- parameter_runs.csv
+|   `-- latest_run.json
+|
 |-- report/
 |   `-- rice_counting_report.md
 |
@@ -329,6 +345,7 @@ Vai trò từng file:
 
 - `main.py`: chạy toàn bộ pipeline cho một ảnh hoặc toàn bộ thư mục.
 - `config.py`: chứa tham số như kernel size, area min/max, CLAHE clip limit.
+- `parameter_log.py`: ghi log local khi thay đổi tham số và chạy lại batch.
 - `preprocess.py`: xử lý grayscale, denoise, background correction, CLAHE.
 - `segment.py`: threshold, morphology, fill holes.
 - `watershed_count.py`: distance transform, watershed, lọc vùng, đếm hạt.

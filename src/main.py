@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from config import DEFAULT_CONFIG, PipelineConfig
+from parameter_log import write_parameter_log
 from preprocess import preprocess_image
 from segment import segment_grains
 from utils import ensure_output_dirs, list_image_files, read_image, save_results_csv
@@ -52,10 +53,16 @@ def run_one_image(image_name: str) -> CountResult:
 def run_all_images() -> list[CountResult]:
     """Run the fixed pipeline for every image using the same configuration."""
 
+    config = PipelineConfig(
+        dataset_dir=DEFAULT_CONFIG.dataset_dir,
+        output_dir=DEFAULT_CONFIG.output_dir,
+        log_dir=DEFAULT_CONFIG.log_dir,
+    )
     results = []
-    for image_path in list_image_files(DEFAULT_CONFIG.dataset_dir):
+    for image_path in list_image_files(config.dataset_dir):
         results.append(run_one_image(image_path.name))
-    save_results_csv(results, DEFAULT_CONFIG.output_dir / "results.csv")
+    save_results_csv(results, config.output_dir / "results.csv")
+    write_parameter_log(config, results)
     return results
 
 
