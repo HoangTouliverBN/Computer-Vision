@@ -19,6 +19,7 @@ TRACKED_PARAMETERS = [
     "clahe_clip_limit",
     "clahe_tile_grid_size",
     "morphology_kernel_size",
+    "mask_dilation_iterations",
     "adaptive_block_size",
     "adaptive_c",
     "min_grain_area",
@@ -26,7 +27,9 @@ TRACKED_PARAMETERS = [
     "min_aspect_ratio",
     "max_aspect_ratio",
     "min_solidity",
+    "min_eccentricity",
     "min_peak_distance",
+    "watershed_split_area_factor",
 ]
 
 
@@ -151,6 +154,21 @@ def parameter_effect(name: str, old_value: Any, new_value: Any) -> str:
         if new_value > old_value:
             return "Tăng solidity tối thiểu giúp loại vùng méo hoặc rỗng, giảm đếm nhầm nền nhưng có thể loại hạt bị dính hoặc mất biên."
         return "Giảm solidity tối thiểu giúp giữ lại vùng hạt méo hoặc dính nhau nhưng có thể tăng đếm nhầm vùng nền."
+
+    if name == "min_eccentricity":
+        if new_value > old_value:
+            return "Tăng eccentricity tối thiểu giúp giữ các vùng thuôn dài giống hạt gạo hơn, giảm nhiễu dạng đốm nhưng có thể loại hạt bị cắt hoặc nhìn ngắn."
+        return "Giảm eccentricity tối thiểu giúp giữ thêm hạt ngắn hoặc bị cắt nhưng có thể tăng đếm nhầm vùng nhiễu không thuôn dài."
+
+    if name == "mask_dilation_iterations":
+        if new_value > old_value:
+            return "Tăng số lần giãn mask giúp bù phần biên hạt bị threshold lấy thiếu, nhưng có thể làm các hạt gần nhau dễ dính hơn."
+        return "Giảm số lần giãn mask giúp hạn chế dính hạt nhưng có thể làm contour nhỏ hơn hạt thật."
+
+    if name == "watershed_split_area_factor":
+        if new_value > old_value:
+            return "Tăng hệ số diện tích tách watershed làm ít component được tách hơn, giảm nguy cơ tách đôi một hạt nhưng có thể đếm thiếu cụm hạt dính."
+        return "Giảm hệ số diện tích tách watershed làm nhiều component được xét tách hơn, giúp tách hạt dính nhưng có thể tăng nguy cơ tách đôi."
 
     if name == "adaptive_c":
         if new_value > old_value:

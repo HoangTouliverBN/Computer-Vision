@@ -67,6 +67,12 @@ def clean_mask(mask: np.ndarray, config: PipelineConfig) -> np.ndarray:
         kernel,
     ) > 0
     filled = ndi.binary_fill_holes(closed)
+    if config.mask_dilation_iterations > 0:
+        filled = cv2.dilate(
+            filled.astype(np.uint8) * 255,
+            kernel,
+            iterations=config.mask_dilation_iterations,
+        ) > 0
 
     return morphology.remove_small_objects(
         filled.astype(bool),

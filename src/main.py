@@ -31,13 +31,9 @@ def configure_stdout_for_unicode() -> None:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
-def run_one_image(image_name: str) -> CountResult:
-    """Run the fixed pipeline for one image name from the dataset directory."""
+def _process_one_image(image_name: str, config: PipelineConfig) -> CountResult:
+    """Run the fixed pipeline for one image with an explicit config object."""
 
-    config = PipelineConfig(
-        dataset_dir=DEFAULT_CONFIG.dataset_dir,
-        output_dir=DEFAULT_CONFIG.output_dir,
-    )
     ensure_output_dirs(config.output_dir)
 
     image_path = config.dataset_dir / image_name
@@ -46,23 +42,28 @@ def run_one_image(image_name: str) -> CountResult:
     mask = segment_grains(preprocessed, config)
     result = separate_and_count(image_path.name, mask, config)
     save_visualizations(image, mask, result, config.output_dir)
-    save_results_csv([result], config.output_dir / "results.csv")
     return result
 
 
-def run_all_images() -> list[CountResult]:
+def run_one_image(image_name: str) -> CountResult:
+    """Run the fixed pipeline for one image name from the dataset directory."""
+
+    result = _process_one_image(image_name, DEFAULT_CONFIG)
+    save_results_csv([result], DEFAULT_CONFIG.output_dir / "results.csv")
+    return result
+
+
+def run_all_images(config: PipelineConfig | None = None) -> list[CountResult]:
     """Run the fixed pipeline for every image using the same configuration."""
 
-    config = PipelineConfig(
-        dataset_dir=DEFAULT_CONFIG.dataset_dir,
-        output_dir=DEFAULT_CONFIG.output_dir,
-        log_dir=DEFAULT_CONFIG.log_dir,
-    )
+    active_config = config or DEFAULT_CONFIG
+    ensure_output_dirs(active_config.output_dir)
+
     results = []
-    for image_path in list_image_files(config.dataset_dir):
-        results.append(run_one_image(image_path.name))
-    save_results_csv(results, config.output_dir / "results.csv")
-    write_parameter_log(config, results)
+    for image_path in list_image_files(active_config.dataset_dir):
+        results.append(_process_one_image(image_path.name, active_config))
+    save_results_csv(results, active_config.output_dir / "results.csv")
+    write_parameter_log(active_config, results)
     return results
 
 

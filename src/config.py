@@ -21,16 +21,19 @@ class PipelineConfig:
     median_kernel_size: int = 3
 
     # Tiền xử lý: Gaussian blur kernel dùng để ước lượng nền/ánh sáng không đều.
-    background_kernel_size: int = 51
+    background_kernel_size: int = 71
 
     # Tiền xử lý: giới hạn khuếch đại tương phản cục bộ trong CLAHE.
-    clahe_clip_limit: float = 2.0
+    clahe_clip_limit: float = 1.5
 
     # Tiền xử lý: kích thước lưới CLAHE, ảnh hưởng mức tăng tương phản theo vùng.
     clahe_tile_grid_size: tuple[int, int] = (8, 8)
 
     # Hậu xử lý mask: kernel morphology để mở/đóng vùng hạt sau threshold.
     morphology_kernel_size: int = 3
+
+    # Hậu xử lý mask: số lần giãn nhẹ để bù phần biên hạt bị threshold lấy thiếu.
+    mask_dilation_iterations: int = 0
 
     # Threshold: kích thước vùng cục bộ khi Otsu fallback sang adaptive threshold.
     adaptive_block_size: int = 51
@@ -39,7 +42,7 @@ class PipelineConfig:
     adaptive_c: int = -5
 
     # Lọc nhiễu/lọc vùng: diện tích nhỏ nhất để một vùng được xem là hạt hợp lệ.
-    min_grain_area: int = 60
+    min_grain_area: int = 100
 
     # Lọc vùng: diện tích lớn nhất để loại các mảng nền hoặc cụm quá lớn.
     max_grain_area: int = 8000
@@ -51,10 +54,16 @@ class PipelineConfig:
     max_aspect_ratio: float = 10.0
 
     # Lọc vùng: độ đặc tối thiểu, loại vùng rỗng/méo nhưng vẫn giữ hạt bị dính nhẹ.
-    min_solidity: float = 0.45
+    min_solidity: float = 0.50
+
+    # Lọc vùng: độ thuôn dài tối thiểu, giúp loại nhiễu không giống hình hạt gạo.
+    min_eccentricity: float = 0.70
 
     # Watershed: khoảng cách tối thiểu giữa marker, kiểm soát tách hạt dính nhau.
-    min_peak_distance: int = 14
+    min_peak_distance: int = 13
+
+    # Watershed: chỉ tách component có diện tích lớn hơn median area theo hệ số này.
+    watershed_split_area_factor: float = 1.30
 
 
 DEFAULT_CONFIG = PipelineConfig()

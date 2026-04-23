@@ -32,10 +32,10 @@ Pipeline chính được chọn là:
 -> Hiệu chỉnh nền
 -> Tăng tương phản bằng CLAHE
 -> Threshold tự động
--> Morphology và fill holes
+-> Morphology, fill holes và giãn mask nhẹ
 -> Distance transform
--> Watershed
--> Lọc vùng theo hình dạng
+-> Watershed có điều kiện cho component lớn
+-> Lọc vùng theo diện tích, hình dạng, solidity và eccentricity
 -> Đếm hạt
 
 Pipeline sử dụng Otsu threshold làm lựa chọn mặc định. Nếu mask sau Otsu có tỷ lệ foreground bất thường, pipeline tự động chuyển sang adaptive threshold. Đây vẫn là một pipeline duy nhất vì việc chuyển threshold được quyết định tự động từ đặc trưng của mask, không dựa trên tên ảnh và không chỉnh tay theo từng ảnh.
@@ -53,28 +53,28 @@ Bảng kết quả:
 
 | Ảnh | Loại ảnh | Số hạt đếm được | Vùng bị loại | Threshold | Foreground ratio | Component sau clean |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| `gạo_bình_thường.png` | Bình thường | 101 | 45 | Otsu | 0.2905 | 118 |
-| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 105 | 41 | Otsu | 0.2852 | 116 |
-| `gạo_nền_không_đều.png` | Nền không đều | 135 | 39 | Adaptive | 0.4570 | 117 |
-| `gạo_tương_phản_thấp.png` | Tương phản thấp | 102 | 32 | Otsu | 0.1513 | 95 |
+| `gạo_bình_thường.png` | Bình thường | 101 | 49 | Otsu | 0.3386 | 106 |
+| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 93 | 55 | Otsu | 0.3338 | 104 |
+| `gạo_nền_không_đều.png` | Nền không đều | 133 | 67 | Adaptive | 0.5312 | 109 |
+| `gạo_tương_phản_thấp.png` | Tương phản thấp | 93 | 40 | Otsu | 0.1873 | 94 |
 
 Nhận xét nhanh:
 
 - Ảnh bình thường đạt 101 hạt, khớp với số đếm tay dùng làm mốc hiệu chỉnh.
-- Ảnh nhiễu muối tiêu cho kết quả gần ảnh bình thường, cho thấy median blur và morphology giúp pipeline ổn định hơn trước nhiễu muối tiêu.
+- Ảnh nhiễu muối tiêu được lọc gắt hơn để giảm đếm nhầm nhiễu, nên số hạt đếm được thấp hơn ảnh bình thường.
 - Ảnh nền không đều được chuyển sang adaptive threshold, đúng với kỳ vọng vì nền sáng tối không đều làm threshold toàn cục kém ổn định.
 - Ảnh tương phản thấp có foreground ratio thấp hơn, nhưng CLAHE giúp hạt vẫn được tách ra để đếm.
-- Số vùng bị loại cho thấy bước lọc hình dạng đang loại nhiều vùng không đạt điều kiện về diện tích, tỷ lệ cạnh hoặc solidity.
+- Số vùng bị loại tăng sau khi bổ sung lọc eccentricity và watershed có điều kiện; điều này giúp giảm các vùng nhiễu không giống hình hạt gạo.
 
 ## 5. Nhận xét chi tiết
 
 ### Nhiễu
 
-Nhiễu muối tiêu tạo nhiều điểm trắng hoặc đen nhỏ trên ảnh. Nếu threshold trực tiếp, các điểm nhiễu sáng có thể bị nhận nhầm là hạt gạo nhỏ. Pipeline xử lý bằng median blur trước threshold, sau đó dùng morphology và remove small objects để loại các vùng nhiễu nhỏ. Vì vậy kết quả của ảnh nhiễu muối tiêu là 105, chỉ cao hơn 4 hạt so với ảnh bình thường.
+Nhiễu muối tiêu tạo nhiều điểm trắng hoặc đen nhỏ trên ảnh. Nếu threshold trực tiếp, các điểm nhiễu sáng có thể bị nhận nhầm là hạt gạo nhỏ. Pipeline xử lý bằng median blur trước threshold, sau đó dùng morphology, remove small objects và lọc eccentricity để loại các vùng nhiễu nhỏ hoặc không có dạng thuôn dài. Vì vậy kết quả của ảnh nhiễu muối tiêu là 93, thấp hơn ảnh bình thường do bộ lọc ưu tiên giảm đếm nhầm nhiễu.
 
 ### Hạt dính nhau
 
-Các hạt gạo gần nhau có thể bị gộp thành một component lớn. Nếu chỉ dùng connected components, các vùng này dễ bị đếm thiếu. Pipeline dùng distance transform và watershed để tạo marker tại vùng trung tâm của từng hạt, sau đó tách các vùng chạm nhau.
+Các hạt gạo gần nhau có thể bị gộp thành một component lớn. Nếu chỉ dùng connected components, các vùng này dễ bị đếm thiếu. Pipeline dùng distance transform và watershed để tạo marker tại vùng trung tâm của từng hạt, sau đó tách các vùng chạm nhau. Để tránh một hạt dài bị tách đôi, watershed chỉ được áp dụng cho các connected component có diện tích lớn hơn median area của các vùng ứng viên.
 
 Tuy nhiên watershed vẫn có rủi ro:
 
@@ -85,11 +85,11 @@ Tuy nhiên watershed vẫn có rủi ro:
 
 Ảnh nền không đều là trường hợp khó nhất vì nền có vùng sáng tối thay đổi mạnh. Pipeline dùng bước hiệu chỉnh nền trước threshold. Sau đó, nếu Otsu tạo mask bất thường, pipeline tự động chuyển sang adaptive threshold.
 
-Kết quả đếm của ảnh nền không đều là 135, cao hơn ảnh bình thường. Điều này cho thấy adaptive threshold giúp giữ lại vùng hạt trong nền khó, nhưng vẫn cần kiểm tra contour overlay để đánh giá có bị đếm nhầm vùng nền sáng hay không.
+Kết quả đếm của ảnh nền không đều là 133, cao hơn ảnh bình thường. Điều này cho thấy adaptive threshold giúp giữ lại vùng hạt trong nền khó, nhưng vẫn cần kiểm tra contour overlay để đánh giá có bị đếm nhầm vùng nền sáng hay không.
 
 ### Tương phản thấp
 
-Ảnh tương phản thấp có foreground ratio 0.1513, thấp hơn các ảnh còn lại. Điều này nghĩa là vùng được tách ra làm hạt gạo chiếm tỷ lệ nhỏ hơn trong ảnh. CLAHE giúp tăng tương phản cục bộ, làm hạt rõ hơn trước khi threshold.
+Ảnh tương phản thấp có foreground ratio 0.1873, thấp hơn các ảnh nền khó nhưng cao hơn cấu hình trước do mask được giãn nhẹ để bù phần biên hạt bị threshold lấy thiếu. CLAHE giúp tăng tương phản cục bộ, làm hạt rõ hơn trước khi threshold.
 
 Dù vậy, biên hạt trong ảnh tương phản thấp vẫn có thể yếu. Khi kiểm tra overlay, cần chú ý các hạt ở vùng tối hoặc sát biên ảnh vì chúng dễ bị mất biên hoặc bị lọc bỏ.
 

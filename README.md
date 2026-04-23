@@ -204,82 +204,54 @@ Pipeline cuối:
 6. Apply CLAHE.
 7. Threshold bằng Otsu, fallback sang adaptive threshold nếu mask bất thường.
 8. Morphology opening/closing.
-9. Fill holes.
+9. Fill holes và giãn mask nhẹ để bù phần biên hạt bị lấy thiếu.
 10. Distance transform.
 11. Generate markers.
-12. Watershed.
-13. Filter labels by area and shape.
+12. Watershed có điều kiện, chỉ tách các component lớn hơn median area.
+13. Filter labels by area, shape, solidity và eccentricity.
 14. Count rice grains.
 15. Save outputs.
 
-## 5. Kế hoạch implement
+## 5. Thư viện sử dụng
 
-Thư viện sử dụng:
+Cài đặt toàn bộ thư viện bằng:
 
-- `opencv-python`: xử lý ảnh chính.
-- `numpy`: tính toán ma trận ảnh.
-- `scipy`: fill holes, distance transform hoặc local maxima nếu cần.
-- `scikit-image`: watershed, measure regionprops, morphology.
-- `matplotlib`: lưu ảnh visualization.
-- `pandas`: lưu bảng kết quả CSV.
-- `argparse`: chạy script từ command line.
+```powershell
+pip install -r requirements.txt
+```
 
-Các bước implement:
+Các thư viện chính trong project:
 
-1. Tạo cấu trúc project.
-2. Viết module đọc ảnh và chuẩn hóa input.
-3. Viết module preprocessing:
-   - grayscale
-   - median blur
-   - background correction
-   - CLAHE
-4. Viết module segmentation:
-   - threshold Otsu/adaptive
-   - morphology
-   - fill holes
-5. Viết module separation:
-   - distance transform
-   - marker extraction
-   - watershed
-6. Viết module counting:
-   - regionprops
-   - lọc theo area, aspect ratio, solidity
-   - trả về số lượng hạt
-7. Viết module visualization:
-   - lưu mask
-   - lưu contour overlay
-   - lưu label màu
-8. Viết script chạy toàn bộ dataset.
-9. Xuất kết quả:
-   - ảnh trung gian
-   - ảnh cuối cùng
-   - file CSV tổng hợp count từng ảnh
-10. Viết báo cáo:
-   - phân tích bài toán
-   - mô tả pipeline
-   - so sánh pipeline
-   - kết quả thực nghiệm
-   - nhận xét lỗi còn lại.
+- `opencv-python`: đọc/ghi ảnh, chuyển màu, threshold, morphology, CLAHE và vẽ contour.
+- `numpy`: biểu diễn ảnh dạng ma trận và xử lý tính toán số.
+- `scipy`: hỗ trợ `distance_transform_edt` và `binary_fill_holes`.
+- `scikit-image`: morphology, connected components, `regionprops`, `peak_local_max` và watershed.
+- `matplotlib`: hiển thị ảnh, histogram và trực quan hóa trong notebook.
+- `pandas`: tạo bảng kết quả và hiển thị thống kê trong notebook.
+- `ipykernel`: chạy notebook trong Jupyter hoặc VS Code.
+- `pytest`: kiểm tra contract pipeline và các hàm phụ trợ trong quá trình phát triển.
 
-### Chạy theo notebook
+Các module chuẩn của Python được dùng thêm gồm `argparse`, `dataclasses`, `pathlib`, `csv`, `json` và `datetime`; các module này không cần cài riêng.
 
-Ngoài cấu trúc code trong `src/`, project có thể chạy trực tiếp bằng notebook:
+## 6. Chạy notebook và theo dõi kết quả
+
+Ngoài script trong `src/`, project có thể chạy trực tiếp bằng notebook:
 
 ```text
 notebooks/rice_counting_pipeline.ipynb
 ```
 
-Notebook này được tổ chức theo từng bước xử lý ảnh. Sau mỗi hàm xử lý chính đều có lệnh `print` hoặc `display` để in kết quả ngay lập tức, đồng thời có ảnh trực quan để kiểm tra kết quả trung gian:
+Notebook dùng trực tiếp các hàm trong `src/` và dùng chung `DEFAULT_CONFIG` từ `src/config.py`. Sau khi sửa tham số trong `src/config.py`, cần chạy lại cell setup để notebook reload module mới; khi đó notebook và script sẽ chạy cùng một logic.
+
+Notebook được tổ chức theo từng bước xử lý ảnh. Sau mỗi hàm xử lý chính đều có lệnh `print` hoặc `display` để in kết quả ngay lập tức, đồng thời có ảnh trực quan để kiểm tra kết quả trung gian:
 
 - Đọc ảnh: in số ảnh, tên ảnh, shape/dtype/min/max/mean/std của ảnh mẫu và hiển thị toàn bộ ảnh trong `Dataset/`.
 - Tiền xử lý: sau `to_grayscale`, `denoise_image`, `correct_illumination`, `enhance_contrast` đều in thống kê ảnh; sau đó hiển thị ảnh trung gian và histogram.
-- Phân đoạn: sau `threshold_grains` và `clean_mask` đều in foreground ratio, số foreground pixels và số connected components.
-- Watershed/counting: sau `watershed_separation`, `filter_grain_regions`, `count_grains` đều in số label, số vùng accepted/rejected và số hạt cuối cùng.
-- Batch run: sau mỗi lần `run_one_image` đều in dictionary kết quả, lưu output và xuất bảng `output/results.csv`.
+- Phân đoạn: sau `threshold_grains`, `clean_mask`, `segment_grains` đều in foreground ratio, số foreground pixels và số connected components.
+- Watershed/counting: sau `watershed_separation`, `filter_grain_regions`, `separate_and_count` đều in số label, số vùng bị loại và số hạt cuối cùng.
+- Batch run: `run_all_images(CONFIG)` chạy toàn bộ dataset, lưu output và xuất bảng `output/results.csv`.
 
-### Theo dõi thay đổi tham số
-
-Khi chạy batch toàn bộ ảnh bằng `run_all_images()`, project tự ghi nhật ký local trong `logs/`:
+Khi chạy batch toàn bộ ảnh bằng `run_all_images(CONFIG)`, project tự ghi nhật ký local trong `logs/`:
 
 - `logs/parameter_runs.md`: log dễ đọc, nêu tham số thay đổi, ảnh hưởng dự kiến và kết quả từng ảnh.
 - `logs/parameter_runs.csv`: log dạng bảng để so sánh nhiều lần chạy.
@@ -287,22 +259,19 @@ Khi chạy batch toàn bộ ảnh bằng `run_all_images()`, project tự ghi nh
 
 Thư mục `logs/` chỉ dùng ở local và đã được đưa vào `.gitignore`. Khi đánh giá, chỉ thay đổi một bộ tham số chung trong `PipelineConfig`, chạy lại toàn bộ ảnh, rồi so sánh log; không chỉnh tham số riêng theo từng ảnh.
 
-Cách chạy:
+Cách chạy notebook:
 
 1. Mở `notebooks/rice_counting_pipeline.ipynb` bằng Jupyter Notebook, JupyterLab hoặc VS Code.
-2. Cài thư viện nếu thiếu:
+2. Chọn kernel Python đã cài các thư viện trong `requirements.txt`.
+3. Chạy cell setup đầu tiên để notebook tự tìm đúng project root và reload code mới từ `src/`.
+4. Chạy lần lượt các cell từ trên xuống.
+5. Sau mỗi lần thay đổi tham số trong `src/config.py`, chạy lại cell setup rồi chạy lại cell batch để log nhận đúng thay đổi.
+6. Giữ nguyên `DEFAULT_CONFIG` cho toàn bộ ảnh khi đánh giá; không chỉnh tham số riêng theo từng ảnh.
 
-```powershell
-pip install -r requirements.txt
-```
-
-3. Chạy lần lượt các cell từ trên xuống.
-4. Giữ nguyên `PARAMS` cho toàn bộ ảnh khi đánh giá; không chỉnh tham số riêng theo từng ảnh.
-
-## 6. Cấu trúc project đề xuất
+## 7. Cấu trúc project
 
 ```text
-Assigment/
+Computer-Vision/
 |-- Dataset/
 |   |-- gạo_bình_thường.png
 |   |-- gạo_nhiễu_muối_tiêu.png
@@ -344,16 +313,16 @@ Assigment/
 Vai trò từng file:
 
 - `main.py`: chạy toàn bộ pipeline cho một ảnh hoặc toàn bộ thư mục.
-- `config.py`: chứa tham số như kernel size, area min/max, CLAHE clip limit.
+- `config.py`: chứa tham số chung cho preprocessing, threshold, giãn mask, watershed và lọc vùng.
 - `parameter_log.py`: ghi log local khi thay đổi tham số và chạy lại batch.
 - `preprocess.py`: xử lý grayscale, denoise, background correction, CLAHE.
-- `segment.py`: threshold, morphology, fill holes.
-- `watershed_count.py`: distance transform, watershed, lọc vùng, đếm hạt.
+- `segment.py`: threshold, morphology, fill holes và giãn mask nhẹ.
+- `watershed_count.py`: distance transform, watershed có điều kiện, lọc vùng, đếm hạt.
 - `visualize.py`: vẽ contour, label màu, lưu ảnh kết quả.
 - `utils.py`: helper đọc ảnh, tạo thư mục output, lưu CSV.
-- `results.csv`: bảng kết quả gồm tên ảnh, số hạt đếm được, số object bị loại.
+- `results.csv`: bảng kết quả gồm tên ảnh, số hạt đếm được, số vùng bị loại.
 - `rice_counting_report.md`: báo cáo cuối cùng.
 
 ## Kết luận
 
-Nên dùng Pipeline 2 làm pipeline chính vì đây là phương án cân bằng nhất giữa độ ổn định và khả năng giải thích. Pipeline này có đủ các bước để xử lý nhiễu, nền không đều, tương phản thấp và hạt dính nhau, đồng thời vẫn dựa trên các kỹ thuật xử lý ảnh cổ điển phù hợp với bài tập Computer Vision.
+Nên dùng Pipeline 2 làm pipeline chính vì đây là phương án cân bằng nhất giữa độ ổn định và khả năng giải thích. Pipeline này có đủ các bước để xử lý nhiễu, nền không đều, tương phản thấp và hạt dính nhau.
