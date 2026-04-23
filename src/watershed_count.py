@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from scipy import ndimage as ndi
@@ -101,12 +102,7 @@ def filter_grain_regions(
     rejected_regions = 0
 
     for region in measure.regionprops(labels):
-        min_row, min_col, max_row, max_col = region.bbox
-        height = max_row - min_row
-        width = max_col - min_col
-        short_side = max(1, min(height, width))
-        long_side = max(height, width)
-        aspect_ratio = long_side / short_side
+        aspect_ratio = region_axis_ratio(region)
 
         accepted = (
             config.min_grain_area <= region.area <= config.max_grain_area
@@ -122,3 +118,22 @@ def filter_grain_regions(
             rejected_regions += 1
 
     return filtered, rejected_regions
+
+
+def region_axis_ratio(region: Any) -> float:
+    """Return elongated-shape ratio from fitted ellipse axes."""
+
+    major_axis_length = getattr(region, "axis_major_length", None)
+    minor_axis_length = getattr(region, "axis_minor_length", None)
+    if major_axis_length is None or minor_axis_length is None:
+        major_axis_length = region.major_axis_length
+        minor_axis_length = region.minor_axis_length
+    if minor_axis_length > 0:
+        return float(major_axis_length / minor_axis_length)
+
+    min_row, min_col, max_row, max_col = region.bbox
+    height = max_row - min_row
+    width = max_col - min_col
+    short_side = max(1, min(height, width))
+    long_side = max(height, width)
+    return float(long_side / short_side)

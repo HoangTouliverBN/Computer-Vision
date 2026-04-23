@@ -82,7 +82,7 @@ Các bước:
 7. Morphology opening để bỏ nhiễu nhỏ.
 8. Morphology closing và fill holes để làm đầy vùng hạt.
 9. Tách hạt dính nhau bằng distance transform, marker extraction và watershed.
-10. Lọc kết quả theo diện tích, aspect ratio, solidity hoặc extent.
+10. Lọc kết quả theo diện tích, tỷ lệ trục ellipse, solidity hoặc eccentricity.
 11. Đếm số label cuối cùng.
 12. Xuất ảnh kiểm tra gồm mask, contour và label màu.
 
@@ -204,11 +204,11 @@ Pipeline cuối:
 6. Apply CLAHE.
 7. Threshold bằng Otsu, fallback sang adaptive threshold nếu mask bất thường.
 8. Morphology opening/closing.
-9. Fill holes và giãn mask nhẹ để bù phần biên hạt bị lấy thiếu.
+9. Fill holes và tùy chọn giãn mask nhẹ để bù phần biên hạt bị lấy thiếu.
 10. Distance transform.
 11. Generate markers.
 12. Watershed có điều kiện, chỉ tách các component lớn hơn median area.
-13. Filter labels by area, shape, solidity và eccentricity.
+13. Filter labels by area, tỷ lệ trục ellipse, solidity và eccentricity.
 14. Count rice grains.
 15. Save outputs.
 
@@ -229,7 +229,7 @@ Các thư viện chính trong project:
 - `matplotlib`: hiển thị ảnh, histogram và trực quan hóa trong notebook.
 - `pandas`: tạo bảng kết quả và hiển thị thống kê trong notebook.
 - `ipykernel`: chạy notebook trong Jupyter hoặc VS Code.
-- `pytest`: kiểm tra contract pipeline và các hàm phụ trợ trong quá trình phát triển.
+- `pytest`: tùy chọn cho kiểm tra local trong quá trình phát triển; thư mục `tests/` không đưa vào Git.
 
 Các module chuẩn của Python được dùng thêm gồm `argparse`, `dataclasses`, `pathlib`, `csv`, `json` và `datetime`; các module này không cần cài riêng.
 
@@ -258,6 +258,17 @@ Khi chạy batch toàn bộ ảnh bằng `run_all_images(CONFIG)`, project tự 
 - `logs/latest_run.json`: mốc so sánh cho lần chạy kế tiếp.
 
 Thư mục `logs/` chỉ dùng ở local và đã được đưa vào `.gitignore`. Khi đánh giá, chỉ thay đổi một bộ tham số chung trong `PipelineConfig`, chạy lại toàn bộ ảnh, rồi so sánh log; không chỉnh tham số riêng theo từng ảnh.
+
+Kết quả thực nghiệm mới nhất trong `output/results.csv`:
+
+| Ảnh | Số hạt đếm được | Vùng bị loại |
+| --- | ---: | ---: |
+| `gạo_bình_thường.png` | 101 | 0 |
+| `gạo_nhiễu_muối_tiêu.png` | 100 | 1 |
+| `gạo_nền_không_đều.png` | 139 | 21 |
+| `gạo_tương_phản_thấp.png` | 96 | 0 |
+
+Kết quả này dùng bộ lọc hình dạng dựa trên tỷ lệ trục ellipse (`axis_major_length / axis_minor_length`) thay cho tỷ lệ bounding box. Cách đo mới giữ tốt hơn các hạt nằm chéo, nhưng ảnh nền không đều vẫn cần kiểm tra trực quan bằng contour overlay vì đây là trường hợp dễ sinh foreground giả nhất.
 
 Cách chạy notebook:
 
@@ -303,6 +314,8 @@ Computer-Vision/
 |   |-- parameter_runs.csv
 |   `-- latest_run.json
 |
+|-- tests/                 # local-only, không commit
+|
 |-- report/
 |   `-- rice_counting_report.md
 |
@@ -317,7 +330,7 @@ Vai trò từng file:
 - `parameter_log.py`: ghi log local khi thay đổi tham số và chạy lại batch.
 - `preprocess.py`: xử lý grayscale, denoise, background correction, CLAHE.
 - `segment.py`: threshold, morphology, fill holes và giãn mask nhẹ.
-- `watershed_count.py`: distance transform, watershed có điều kiện, lọc vùng, đếm hạt.
+- `watershed_count.py`: distance transform, watershed có điều kiện, lọc vùng bằng diện tích, tỷ lệ trục ellipse, solidity, eccentricity và đếm hạt.
 - `visualize.py`: vẽ contour, label màu, lưu ảnh kết quả.
 - `utils.py`: helper đọc ảnh, tạo thư mục output, lưu CSV.
 - `results.csv`: bảng kết quả gồm tên ảnh, số hạt đếm được, số vùng bị loại.
