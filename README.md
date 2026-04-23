@@ -287,17 +287,17 @@ pip install -r requirements.txt
 ```
 
 3. Chạy lần lượt các cell từ trên xuống.
-4. Nếu kết quả đếm chưa tốt, chỉnh các tham số trong biến `PARAMS` ở đầu notebook rồi chạy lại.
+4. Giữ nguyên `PARAMS` cho toàn bộ ảnh khi đánh giá; không chỉnh tham số riêng theo từng ảnh.
 
 ## 6. Cấu trúc project đề xuất
 
 ```text
 Assigment/
 |-- Dataset/
-|   |-- rice_normal.png
-|   |-- rice_salt_pepper_noise.png
-|   |-- rice_uneven_background.png
-|   `-- rice_low_contrast.png
+|   |-- gạo_bình_thường.png
+|   |-- gạo_nhiễu_muối_tiêu.png
+|   |-- gạo_nền_không_đều.png
+|   `-- gạo_tương_phản_thấp.png
 |
 |-- src/
 |   |-- main.py

@@ -23,10 +23,10 @@ Bang ket qua:
 
 | Anh | Loai anh | So hat dem duoc | Vung bi loai | Threshold | Foreground ratio | Component sau clean |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| `rice_normal.png` | Binh thuong | 111 | 56 | Otsu | 0.2920 | 124 |
-| `rice_salt_pepper_noise.png` | Nhieu muoi tieu | 111 | 55 | Otsu | 0.2875 | 124 |
-| `rice_uneven_background.png` | Nen khong deu | 143 | 58 | Adaptive | 0.4578 | 120 |
-| `rice_low_contrast.png` | Tuong phan thap | 110 | 38 | Otsu | 0.1513 | 95 |
+| `gạo_bình_thường.png` | Bình thường | 111 | 56 | Otsu | 0.2920 | 124 |
+| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 111 | 55 | Otsu | 0.2875 | 124 |
+| `gạo_nền_không_đều.png` | Nền không đều | 143 | 58 | Adaptive | 0.4578 | 120 |
+| `gạo_tương_phản_thấp.png` | Tương phản thấp | 110 | 38 | Otsu | 0.1513 | 95 |
 
 Nhan xet nhanh:
 
@@ -39,7 +39,7 @@ Nhan xet nhanh:
 
 ### Nhieu
 
-Nhieu muoi tieu tao nhieu diem trang/den nho. Pipeline dung median blur truoc threshold va remove small objects sau threshold nen ket qua cua anh nhieu muoi tieu van giu cung so dem 111 nhu anh binh thuong.
+Nhiễu muối tiêu tạo nhiều điểm trắng/đen nhỏ. Pipeline dùng median blur trước threshold và remove small objects sau threshold nên kết quả của ảnh nhiễu muối tiêu vẫn giữ cùng số đếm 111 như ảnh bình thường.
 
 ### Hat dinh nhau
 
@@ -49,7 +49,7 @@ Hat gan nhau co the bi gop thanh mot component. Buoc distance transform va water
 
 Anh nen sinus la truong hop kho nhat vi nen co vung sang toi manh. Pipeline dung background correction va adaptive threshold fallback. Ket qua dem la 143, cao hon anh binh thuong, nen can kiem tra contour overlay de xac dinh co dem du hay dem nham nen sang.
 
-### Tuong phan thap
+### Tương phản thấp
 
 Anh tuong phan thap co foreground ratio 0.1513, thap hon cac anh con lai. CLAHE giup tang tuong phan cuc bo, nhung bien hat co the van yeu. Khi kiem tra overlay, can chu y cac hat o vung toi hoac sat bien anh.
 
@@ -57,5 +57,5 @@ Anh tuong phan thap co foreground ratio 0.1513, thap hon cac anh con lai. CLAHE 
 
 - Hat bi cat o bien anh co the bi loai neu dien tich hoac aspect ratio khong dat nguong.
 - Hat qua gan nhau co the bi watershed tach sai.
-- Nen khong deu co the tao foreground gia trong vung qua sang.
+- Nền không đều có thể tạo foreground giả trong vùng quá sáng.
 - Tham so `min_peak_distance`, `min_grain_area`, `max_grain_area` can duoc tinh chinh neu overlay cho thay dem thieu hoac dem du.
