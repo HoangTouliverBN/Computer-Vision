@@ -18,16 +18,37 @@ class PipelineConfig:
     log_dir: Path = Path("logs")
 
     # Tiền xử lý: median blur để giảm nhiễu muối tiêu trước khi threshold.
-    median_kernel_size: int = 3
+    median_kernel_size: int = 5
 
-    # Tiền xử lý: Gaussian blur kernel dùng để ước lượng nền/ánh sáng không đều.
-    background_kernel_size: int = 71
+    # Tiền xử lý Fourier: bán kính cutoff cho Gaussian high-pass trong homomorphic filtering.
+    fourier_cutoff: int = 5
+
+    # Tiền xử lý Fourier: gain cho thành phần tần số thấp, giảm ảnh hưởng ánh sáng nền.
+    fourier_low_gain: float = 0.0
+
+    # Tiền xử lý Fourier: gain cho thành phần tần số cao, giữ và làm rõ chi tiết hạt.
+    fourier_high_gain: float = 1.3
+
+    # Tiền xử lý Fourier notch: tần số thấp nhất được xét là sọc nền.
+    fourier_stripe_min_frequency: int = 8
+
+    # Tiền xử lý Fourier notch: tần số cao nhất được xét là sọc nền.
+    fourier_stripe_max_frequency: int = 32
+
+    # Tiền xử lý Fourier notch: số đỉnh phổ mạnh nhất được triệt.
+    fourier_stripe_top_k: int = 4
+
+    # Tiền xử lý Fourier notch: bán kính quanh mỗi đỉnh phổ được triệt.
+    fourier_stripe_radius: int = 1
+
+    # Tiền xử lý Fourier notch: cường độ trừ thành phần sọc đã ước lượng.
+    fourier_stripe_strength: float = 1.0
 
     # Tiền xử lý: giới hạn khuếch đại tương phản cục bộ trong CLAHE.
     clahe_clip_limit: float = 1.5
 
     # Tiền xử lý: kích thước lưới CLAHE, ảnh hưởng mức tăng tương phản theo vùng.
-    clahe_tile_grid_size: tuple[int, int] = (8, 8)
+    clahe_tile_grid_size: tuple[int, int] = (6, 6)
 
     # Hậu xử lý mask: kernel morphology để mở/đóng vùng hạt sau threshold.
     morphology_kernel_size: int = 3
@@ -36,10 +57,16 @@ class PipelineConfig:
     mask_dilation_iterations: int = 0
 
     # Threshold: kích thước vùng cục bộ khi Otsu fallback sang adaptive threshold.
-    adaptive_block_size: int = 51
+    adaptive_block_size: int = 31
 
     # Threshold: hằng số C của adaptive threshold, điều chỉnh lượng foreground giữ lại.
-    adaptive_c: int = -5
+    adaptive_c: int = -8
+
+    # Threshold: nếu Otsu giữ foreground ít hơn mức này thì fallback sang adaptive.
+    otsu_min_foreground_ratio: float = 0.12
+
+    # Threshold: nếu Otsu giữ foreground nhiều hơn mức này thì fallback sang adaptive.
+    otsu_max_foreground_ratio: float = 0.50
 
     # Lọc nhiễu/lọc vùng: diện tích nhỏ nhất để một vùng được xem là hạt hợp lệ.
     min_grain_area: int = 100

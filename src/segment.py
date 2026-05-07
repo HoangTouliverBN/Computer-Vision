@@ -40,7 +40,10 @@ def threshold_grains(preprocessed: np.ndarray, config: PipelineConfig) -> np.nda
     mask = otsu_mask.astype(bool)
     foreground_ratio = float(mask.mean())
 
-    if foreground_ratio < 0.005 or foreground_ratio > 0.60:
+    if (
+        foreground_ratio < config.otsu_min_foreground_ratio
+        or foreground_ratio > config.otsu_max_foreground_ratio
+    ):
         return adaptive_threshold(preprocessed, config)
 
     return mask
@@ -69,13 +72,13 @@ def clean_mask(mask: np.ndarray, config: PipelineConfig) -> np.ndarray:
     filled = ndi.binary_fill_holes(closed)
     if config.mask_dilation_iterations > 0:
         filled = cv2.dilate(
-            filled.astype(np.uint8) * 255,
+            filled.astype(np.uint8) * 255, # type: ignore
             kernel,
             iterations=config.mask_dilation_iterations,
         ) > 0
 
     return morphology.remove_small_objects(
-        filled.astype(bool),
+        filled.astype(bool), # pyright: ignore[reportOptionalMemberAccess]
         max_size=max(0, config.min_grain_area - 1),
     )
 

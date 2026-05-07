@@ -44,7 +44,7 @@ def separate_and_count(
 def watershed_separation(mask: np.ndarray, config: PipelineConfig) -> np.ndarray:
     """Separate touching grain regions with a distance-transform watershed."""
 
-    component_labels = measure.label(mask.astype(bool)).astype(np.int32)
+    component_labels = measure.label(mask.astype(bool)).astype(np.int32) # type: ignore
     component_regions = measure.regionprops(component_labels)
     candidate_areas = [
         region.area
@@ -88,7 +88,7 @@ def _watershed_component(component_mask: np.ndarray, config: PipelineConfig) -> 
     if markers.max() == 0:
         return component_mask.astype(np.int32)
 
-    return watershed(-distance, markers, mask=component_mask.astype(bool))
+    return watershed(-distance, markers, mask=component_mask.astype(bool)) # type: ignore
 
 
 def filter_grain_regions(

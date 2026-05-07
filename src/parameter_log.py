@@ -15,13 +15,22 @@ from watershed_count import CountResult
 
 TRACKED_PARAMETERS = [
     "median_kernel_size",
-    "background_kernel_size",
+    "fourier_cutoff",
+    "fourier_low_gain",
+    "fourier_high_gain",
+    "fourier_stripe_min_frequency",
+    "fourier_stripe_max_frequency",
+    "fourier_stripe_top_k",
+    "fourier_stripe_radius",
+    "fourier_stripe_strength",
     "clahe_clip_limit",
     "clahe_tile_grid_size",
     "morphology_kernel_size",
     "mask_dilation_iterations",
     "adaptive_block_size",
     "adaptive_c",
+    "otsu_min_foreground_ratio",
+    "otsu_max_foreground_ratio",
     "min_grain_area",
     "max_grain_area",
     "min_aspect_ratio",
@@ -180,10 +189,59 @@ def parameter_effect(name: str, old_value: Any, new_value: Any) -> str:
             return "Tăng block size làm adaptive threshold ổn định hơn trên vùng rộng nhưng có thể kém nhạy với thay đổi cục bộ."
         return "Giảm block size làm threshold nhạy hơn với vùng cục bộ nhưng dễ bắt nhiễu hoặc nền không đều."
 
-    if name == "background_kernel_size":
+    if name == "otsu_min_foreground_ratio":
         if new_value > old_value:
-            return "Tăng kernel hiệu chỉnh nền giúp xử lý biến thiên ánh sáng lớn hơn nhưng có thể làm mất chi tiết cục bộ."
-        return "Giảm kernel hiệu chỉnh nền giúp phản ứng với thay đổi cục bộ nhanh hơn nhưng có thể kém ổn định với nền thay đổi chậm."
+            return "Tăng ngưỡng foreground thấp làm pipeline chuyển sang adaptive sớm hơn khi Otsu lấy quá ít hạt."
+        return "Giảm ngưỡng foreground thấp làm pipeline giữ Otsu trong nhiều trường hợp hơn, nhưng có thể bỏ qua ảnh bị mất hạt."
+
+    if name == "otsu_max_foreground_ratio":
+        if new_value > old_value:
+            return "Tăng ngưỡng foreground cao làm pipeline ít fallback hơn khi Otsu lấy nhiều vùng trắng, có thể giữ thêm nền."
+        return "Giảm ngưỡng foreground cao làm pipeline chuyển sang adaptive sớm hơn khi Otsu ăn nhiều nền."
+
+    if name == "fourier_cutoff":
+        if new_value > old_value:
+            return (
+                "Tăng cutoff Fourier làm bộ lọc giữ nhiều biến thiên nền chậm hơn, ảnh ít gắt hơn nhưng có thể giảm khả năng làm phẳng nền."
+            )
+        return (
+            "Giảm cutoff Fourier làm triệt nền tần số thấp mạnh hơn, nền đều hơn nhưng có thể làm biên hạt gắt hoặc mất chuyển sắc tự nhiên."
+        )
+
+    if name == "fourier_low_gain":
+        if new_value > old_value:
+            return "Tăng low gain giữ lại nhiều thành phần chiếu sáng nền hơn, ảnh tự nhiên hơn nhưng hiệu chỉnh nền yếu hơn."
+        return "Giảm low gain triệt ánh sáng nền mạnh hơn, giúp nền đều hơn nhưng có thể làm ảnh bị phẳng quá mức."
+
+    if name == "fourier_high_gain":
+        if new_value > old_value:
+            return "Tăng high gain làm rõ chi tiết và biên hạt hơn nhưng có thể khuếch đại nhiễu hoặc tạo biên giả."
+        return "Giảm high gain làm ảnh dịu hơn và ít nhiễu hơn nhưng có thể làm hạt tương phản thấp khó tách."
+
+    if name == "fourier_stripe_min_frequency":
+        if new_value > old_value:
+            return "Tăng tần số notch tối thiểu giúp tránh triệt biến thiên nền quá rộng nhưng có thể bỏ sót sọc chu kỳ dài."
+        return "Giảm tần số notch tối thiểu cho phép triệt sọc chu kỳ dài hơn nhưng có thể ảnh hưởng nền tổng thể."
+
+    if name == "fourier_stripe_max_frequency":
+        if new_value > old_value:
+            return "Tăng tần số notch tối đa cho phép triệt thêm sọc mảnh hơn nhưng có thể chạm vào chi tiết hạt."
+        return "Giảm tần số notch tối đa giúp bảo toàn chi tiết hạt hơn nhưng có thể bỏ sót sọc mảnh."
+
+    if name == "fourier_stripe_top_k":
+        if new_value > old_value:
+            return "Tăng số đỉnh phổ bị triệt giúp giảm nhiều thành phần sọc hơn nhưng có thể xử lý quá mạnh."
+        return "Giảm số đỉnh phổ bị triệt giúp giữ ảnh tự nhiên hơn nhưng có thể còn sót sọc."
+
+    if name == "fourier_stripe_radius":
+        if new_value > old_value:
+            return "Tăng bán kính notch triệt rộng quanh mỗi đỉnh phổ hơn, giảm sọc mạnh hơn nhưng dễ ảnh hưởng chi tiết."
+        return "Giảm bán kính notch giúp tác động hẹp hơn nhưng có thể triệt sọc chưa đủ."
+
+    if name == "fourier_stripe_strength":
+        if new_value > old_value:
+            return "Tăng cường độ notch trừ thành phần sọc mạnh hơn, nền phẳng hơn nhưng có thể làm mất chuyển sắc thật."
+        return "Giảm cường độ notch giữ ảnh tự nhiên hơn nhưng có thể còn sọc nền."
 
     if name == "morphology_kernel_size":
         if new_value > old_value:
@@ -294,7 +352,7 @@ def write_latest_run(
     config: dict[str, Any],
     results: list[CountResult],
 ) -> None:
-    """Save the latest run as the next comparison baseline."""
+    """Save the latest run as the next comparison reference."""
 
     latest_run = {
         "config": config,

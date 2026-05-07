@@ -1,114 +1,163 @@
 # Báo Cáo Bài Toán Đếm Hạt Gạo
 
-## 1. Giới thiệu
+## 1. Giới Thiệu
 
-Tài liệu này tổng hợp phân tích bài toán, pipeline xử lý ảnh, kết quả thực nghiệm và nhận xét cho bài tập đếm hạt gạo trong ảnh.
+Bài toán là đếm số hạt gạo trong ảnh bằng một pipeline xử lý ảnh duy nhất. Pipeline dùng chung một bộ tham số cho toàn bộ dataset, không chỉnh tay theo từng ảnh và khi chạy script chỉ nhận tên ảnh làm đầu vào.
 
-Mục tiêu của bài toán là đếm số lượng hạt gạo trong từng ảnh đầu vào bằng một pipeline xử lý ảnh duy nhất. Pipeline không chỉnh tham số thủ công theo từng ảnh và chỉ nhận tên ảnh làm đầu vào khi chạy xử lý.
-
-## 2. Phân tích dữ liệu
-
-Bộ dữ liệu gồm 4 trường hợp chính:
+Dataset gồm bốn nhóm ảnh:
 
 - Ảnh bình thường.
 - Ảnh nhiễu muối tiêu.
 - Ảnh nền không đều.
 - Ảnh tương phản thấp.
 
-Các trường hợp này đại diện cho những khó khăn thường gặp trong bài toán phân đoạn ảnh:
+Các khó khăn chính là nhiễu nhỏ, hạt dính nhau, nền sáng tối không đều, biên yếu và nguy cơ mất hạt sau khi lọc vùng.
 
-- Nhiễu nhỏ có thể bị nhận nhầm là hạt gạo.
-- Hạt dính nhau có thể bị đếm thiếu nếu chỉ dùng connected components.
-- Ánh sáng không đều làm threshold toàn cục kém ổn định.
-- Tương phản thấp làm biên hạt yếu và dễ mất vùng foreground.
+## 2. Pipeline Cuối Cùng
 
-## 3. Pipeline xử lý
+Pipeline đã chốt:
 
-Pipeline chính được chọn là:
-
+```text
 Đọc ảnh
 -> Chuyển grayscale
 -> Lọc median
--> Hiệu chỉnh nền
--> Tăng tương phản bằng CLAHE
--> Threshold tự động
--> Morphology, fill holes và tùy chọn giãn mask nhẹ
+-> Fourier homomorphic filtering
+-> Fourier notch trên profile cột
+-> CLAHE
+-> Otsu threshold, fallback adaptive nếu foreground ratio bất thường
+-> Morphology và fill holes
 -> Distance transform
--> Watershed có điều kiện cho component lớn
--> Lọc vùng theo diện tích, tỷ lệ trục ellipse, solidity và eccentricity
+-> Watershed có điều kiện
+-> Lọc vùng theo hình dạng
 -> Đếm hạt
+```
 
-Pipeline sử dụng Otsu threshold làm lựa chọn mặc định. Nếu mask sau Otsu có tỷ lệ foreground bất thường, pipeline tự động chuyển sang adaptive threshold. Đây vẫn là một pipeline duy nhất vì việc chuyển threshold được quyết định tự động từ đặc trưng của mask, không dựa trên tên ảnh và không chỉnh tay theo từng ảnh.
+Pipeline này là pipeline duy nhất trong implementation hiện tại. Code không còn nhánh chọn phương pháp hiệu chỉnh nền khác; bước hiệu chỉnh nền được cố định bằng Fourier.
 
-Ở bước lọc vùng, pipeline không dùng tỷ lệ dài/ngắn của bounding box làm tiêu chí chính nữa. Thay vào đó, vùng được đánh giá bằng tỷ lệ trục ellipse (`axis_major_length / axis_minor_length`) từ `regionprops`. Cách này phù hợp hơn với hạt gạo nằm chéo, vì bounding box của hạt chéo có thể gần vuông dù bản thân hạt vẫn thuôn dài.
+## 3. Phân Tích Các Bước Xử Lý
 
-## 4. Kết quả thực nghiệm
+### Grayscale
 
-Notebook và script đã chạy thành công trên 4 ảnh trong `Dataset/`. Kết quả tổng hợp được lưu tại `output/results.csv`. Các ảnh minh họa được tạo trong:
+Ảnh RGB được chuyển về ảnh xám để toàn bộ pipeline xử lý trên cường độ sáng. Nếu ảnh đầu vào đã là grayscale thì giữ nguyên bản sao của ảnh.
 
-- `output/masks/`
-- `output/labels/`
-- `output/contours/`
-- `output/intermediate/`
+### Median Blur
 
-Bảng kết quả:
+Median blur giảm nhiễu muối tiêu bằng cách thay mỗi pixel bằng giá trị trung vị trong vùng lân cận. Bước này ít làm mờ biên hơn so với lọc trung bình, nên phù hợp với hạt gạo có biên mảnh.
+
+Tham số ảnh hưởng:
+
+- `median_kernel_size` tăng thì lọc nhiễu mạnh hơn nhưng có thể làm mất chi tiết biên.
+- `median_kernel_size` giảm thì giữ biên tốt hơn nhưng có thể còn điểm nhiễu.
+
+### Fourier Homomorphic Filtering
+
+Ảnh được đưa sang miền log rồi biến đổi Fourier. Thành phần tần số thấp thường biểu diễn ánh sáng nền thay đổi chậm, còn chi tiết hạt nằm ở tần số cao hơn. Bộ lọc homomorphic làm giảm nền chậm và giữ chi tiết hạt trước khi đưa ảnh về miền không gian.
+
+Tham số ảnh hưởng:
+
+- `fourier_cutoff`: điều khiển vùng tần số thấp bị giảm.
+- `fourier_low_gain`: mức giữ lại ánh sáng nền.
+- `fourier_high_gain`: mức nhấn chi tiết và biên hạt.
+
+### Fourier Notch Trên Profile Cột
+
+Ảnh nền không đều có sọc theo phương cột. Homomorphic filtering xử lý tốt biến thiên nền chậm nhưng chưa triệt hết sọc có tính chu kỳ. Vì vậy pipeline lấy median intensity theo từng cột, biến đổi Fourier một chiều, tìm các đỉnh phổ mạnh trong dải tần đã cấu hình, rồi trừ thành phần sọc ước lượng khỏi ảnh.
+
+Tham số ảnh hưởng:
+
+- `fourier_stripe_min_frequency`, `fourier_stripe_max_frequency`: xác định dải tần được xem là sọc nền.
+- `fourier_stripe_top_k`: số đỉnh phổ bị triệt.
+- `fourier_stripe_radius`: độ rộng vùng triệt quanh mỗi đỉnh.
+- `fourier_stripe_strength`: cường độ trừ thành phần sọc.
+
+### CLAHE
+
+CLAHE tăng tương phản cục bộ sau khi nền đã được hiệu chỉnh. Bước này giúp ảnh tương phản thấp tách hạt rõ hơn, nhưng nếu tăng quá mạnh có thể làm nhiễu hoặc sọc còn sót rõ hơn.
+
+Tham số ảnh hưởng:
+
+- `clahe_clip_limit`: mức khuếch đại tương phản cục bộ.
+- `clahe_tile_grid_size`: kích thước vùng cục bộ dùng cho CLAHE.
+
+### Threshold Tự Động
+
+Pipeline dùng Otsu threshold trước. Sau đó tính `foreground_ratio`, tức tỷ lệ pixel được xem là foreground trong mask. Nếu tỷ lệ này quá thấp hoặc quá cao so với ngưỡng cấu hình, pipeline tự động chuyển sang adaptive threshold.
+
+Đây vẫn là một pipeline duy nhất vì quyết định fallback dựa trên thống kê mask, không dựa trên tên ảnh và không chỉnh tay theo từng ảnh.
+
+Tham số ảnh hưởng:
+
+- `otsu_min_foreground_ratio`: nếu Otsu lấy quá ít foreground thì fallback.
+- `otsu_max_foreground_ratio`: nếu Otsu lấy quá nhiều foreground thì fallback.
+- `adaptive_block_size`, `adaptive_c`: điều khiển adaptive threshold khi fallback xảy ra.
+
+### Làm Sạch Mask
+
+Mask sau threshold được xóa vùng nhỏ, morphology opening/closing và fill holes. Mục tiêu là bỏ nhiễu, nối vùng hạt bị thủng nhẹ và tạo vùng candidate ổn định cho watershed.
+
+Tham số ảnh hưởng:
+
+- `morphology_kernel_size`: kernel càng lớn thì làm sạch mạnh hơn nhưng dễ biến dạng vùng hạt.
+- `mask_dilation_iterations`: giãn mask để bù biên thiếu, nhưng tăng quá mức có thể làm dính hạt.
+- `min_grain_area`: loại vùng nhỏ trước và sau morphology.
+
+### Watershed Có Điều Kiện
+
+Distance transform tạo bản đồ khoảng cách bên trong mask. Marker được lấy từ các cực đại cục bộ, sau đó watershed tách các component lớn. Pipeline không tách mọi component; chỉ component có diện tích lớn hơn `median_area * watershed_split_area_factor` mới được đưa vào watershed. Cách này giảm nguy cơ một hạt đơn bị tách đôi.
+
+Tham số ảnh hưởng:
+
+- `min_peak_distance`: khoảng cách tối thiểu giữa marker.
+- `watershed_split_area_factor`: quyết định component nào đủ lớn để tách.
+
+### Lọc Vùng Và Đếm
+
+Sau watershed, mỗi label được đánh giá bằng `regionprops`. Vùng hợp lệ phải đạt điều kiện về diện tích, tỷ lệ trục ellipse, solidity và eccentricity.
+
+Pipeline dùng tỷ lệ trục ellipse thay cho tỷ lệ bounding box vì hạt gạo có thể nằm chéo. Bounding box của hạt chéo dễ bị gần vuông, trong khi ellipse axis ratio phản ánh tốt hơn hình dạng thuôn dài thật của hạt.
+
+Tham số ảnh hưởng:
+
+- `min_grain_area`, `max_grain_area`: giới hạn diện tích.
+- `min_aspect_ratio`, `max_aspect_ratio`: giới hạn tỷ lệ trục ellipse.
+- `min_solidity`: loại vùng méo, rỗng hoặc biên không kín.
+- `min_eccentricity`: ưu tiên vùng thuôn dài giống hạt gạo.
+
+## 4. Kết Quả Thực Nghiệm
+
+Kết quả hiện tại:
 
 | Ảnh | Loại ảnh | Số hạt đếm được | Vùng bị loại | Threshold | Foreground ratio | Component sau clean |
 | --- | --- | ---: | ---: | --- | ---: | ---: |
-| `gạo_bình_thường.png` | Bình thường | 101 | 0 | Otsu | 0.2726 | 97 |
-| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 100 | 1 | Otsu | 0.2708 | 96 |
-| `gạo_nền_không_đều.png` | Nền không đều | 139 | 21 | Adaptive | 0.4684 | 90 |
-| `gạo_tương_phản_thấp.png` | Tương phản thấp | 96 | 0 | Otsu | 0.1516 | 93 |
+| `gạo_bình_thường.png` | Bình thường | 101 | 2 | Otsu | 0.2720 | 97 |
+| `gạo_nhiễu_muối_tiêu.png` | Nhiễu muối tiêu | 100 | 2 | Otsu | 0.2718 | 96 |
+| `gạo_nền_không_đều.png` | Nền không đều | 107 | 3 | Otsu | 0.2851 | 99 |
+| `gạo_tương_phản_thấp.png` | Tương phản thấp | 96 | 0 | Adaptive | 0.1431 | 92 |
 
-Nhận xét nhanh:
+Nhận xét:
 
-- Ảnh bình thường đạt 101 hạt, khớp với số đếm tay dùng làm mốc hiệu chỉnh.
-- Sau khi đổi sang tỷ lệ trục ellipse, nhiều hạt nằm chéo được giữ lại tốt hơn so với cách dùng bounding box aspect ratio.
-- Ảnh nhiễu muối tiêu vẫn giữ kết quả gần ảnh bình thường, cho thấy median blur và morphology đã giảm nhiễu nhỏ trước khi đếm.
-- Ảnh nền không đều được chuyển sang adaptive threshold, đúng với kỳ vọng vì nền sáng tối không đều làm threshold toàn cục kém ổn định. Đây vẫn là ảnh khó nhất và cần kiểm tra contour overlay để phát hiện foreground giả.
-- Ảnh tương phản thấp có foreground ratio thấp hơn, nhưng CLAHE giúp hạt vẫn được tách ra để đếm.
+- Ảnh bình thường đạt 101 hạt, khớp với mốc đếm tay hiện tại.
+- Ảnh nhiễu muối tiêu vẫn gần ảnh bình thường, cho thấy median blur và morphology đang kiểm soát nhiễu tốt.
+- Ảnh nền không đều được cải thiện nhờ Fourier notch, số vùng bị loại thấp hơn và ít foreground giả hơn.
+- Ảnh tương phản thấp dùng adaptive fallback do Otsu lấy foreground thấp hơn ngưỡng cấu hình.
 
-## 5. Nhận xét chi tiết
-
-### Nhiễu
-
-Nhiễu muối tiêu tạo nhiều điểm trắng hoặc đen nhỏ trên ảnh. Nếu threshold trực tiếp, các điểm nhiễu sáng có thể bị nhận nhầm là hạt gạo nhỏ. Pipeline xử lý bằng median blur trước threshold, sau đó dùng morphology, remove small objects và lọc hình dạng để loại các vùng nhiễu nhỏ hoặc không có dạng thuôn dài. Kết quả hiện tại của ảnh nhiễu muối tiêu là 100, gần với ảnh bình thường, cho thấy nhiễu nhỏ đã được xử lý trước khi bước watershed và filter quyết định số lượng cuối.
-
-### Hạt dính nhau
-
-Các hạt gạo gần nhau có thể bị gộp thành một component lớn. Nếu chỉ dùng connected components, các vùng này dễ bị đếm thiếu. Pipeline dùng distance transform và watershed để tạo marker tại vùng trung tâm của từng hạt, sau đó tách các vùng chạm nhau. Để tránh một hạt dài bị tách đôi, watershed chỉ được áp dụng cho các connected component có diện tích lớn hơn median area của các vùng ứng viên theo hệ số `watershed_split_area_factor`.
-
-Tuy nhiên watershed vẫn có rủi ro:
-
-- Nếu marker quá dày, một hạt có thể bị tách thành nhiều vùng.
-- Nếu marker quá thưa, các hạt dính nhau vẫn có thể bị đếm thiếu.
-
-### Ánh sáng không đều
-
-Ảnh nền không đều là trường hợp khó nhất vì nền có vùng sáng tối thay đổi mạnh. Pipeline dùng bước hiệu chỉnh nền trước threshold. Sau đó, nếu Otsu tạo mask bất thường, pipeline tự động chuyển sang adaptive threshold.
-
-Kết quả đếm của ảnh nền không đều là 139, cao hơn ảnh bình thường. Điều này cho thấy adaptive threshold giúp giữ lại vùng hạt trong nền khó, nhưng cũng có thể giữ thêm foreground giả ở các vùng nền sáng. Đây là trường hợp cần đánh giá trực quan kỹ nhất bằng label màu và contour overlay.
-
-### Tương phản thấp
-
-Ảnh tương phản thấp có foreground ratio 0.1516, thấp hơn các ảnh còn lại. CLAHE giúp tăng tương phản cục bộ, làm hạt rõ hơn trước khi threshold. Việc bỏ dilation sau mask giúp contour ít bị phình nhưng cũng cần theo dõi nguy cơ mất biên ở các hạt yếu.
-
-Dù vậy, biên hạt trong ảnh tương phản thấp vẫn có thể yếu. Khi kiểm tra overlay, cần chú ý các hạt ở vùng tối hoặc sát biên ảnh vì chúng dễ bị mất biên hoặc bị lọc bỏ.
-
-### Lỗi còn lại
+## 5. Vấn Đề Còn Lại
 
 - Hạt bị cắt ở biên ảnh có thể bị loại nếu diện tích hoặc tỷ lệ trục không đạt ngưỡng.
-- Hạt quá gần nhau có thể bị watershed tách sai.
-- Nền không đều có thể tạo foreground giả trong vùng quá sáng.
-- Nếu dữ liệu mới khác nhiều về kích thước hạt hoặc độ phân giải, cần chọn lại một bộ tham số chung cho toàn bộ tập ảnh, không chỉnh riêng từng ảnh khi đánh giá.
+- Watershed vẫn có thể tách đôi một hạt nếu marker nằm quá gần nhau.
+- Nếu tăng độ nhạy để giữ thêm hạt thật, ảnh nền không đều có thể nhận thêm nhiễu nền.
+- Nếu siết lọc vùng để bỏ nhiễu mạnh hơn, một số hạt thật bị yếu biên hoặc bị cắt có thể mất.
 
-## 6. Kết luận
+Do đó khi điều chỉnh tham số cần chạy lại toàn bộ dataset và xem cả số đếm lẫn contour overlay, không đánh giá chỉ bằng một ảnh.
 
-Pipeline hiện tại đáp ứng các yêu cầu bắt buộc:
+## 6. Kết Luận
 
-- Sử dụng một pipeline xử lý ảnh duy nhất cho tất cả ảnh.
-- Không chỉnh tham số thủ công theo từng ảnh.
-- Sử dụng threshold tự động gồm Otsu và adaptive fallback.
-- Khi chạy script, đầu vào xử lý chính chỉ là tên ảnh.
+Pipeline hiện tại đáp ứng yêu cầu:
 
-Pipeline cho kết quả ổn định với ảnh bình thường, ảnh nhiễu muối tiêu và ảnh tương phản thấp. Trường hợp nền không đều vẫn là trường hợp khó nhất và cần được đánh giá trực quan bằng ảnh contour overlay.
+- Một pipeline duy nhất cho tất cả ảnh.
+- Không chỉnh tham số riêng theo từng ảnh.
+- Có threshold tự động bằng Otsu và adaptive fallback.
+- Đầu vào xử lý chính chỉ là tên ảnh.
+- Code đã chốt về một hướng hiệu chỉnh nền bằng Fourier, không còn nhánh phương pháp cũ trong preprocessing.
+
+Phương án này cân bằng tốt giữa khả năng đếm đúng, khả năng giải thích từng bước và khả năng kiểm tra trực quan bằng ảnh trung gian.
