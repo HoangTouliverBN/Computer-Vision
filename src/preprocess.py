@@ -113,20 +113,31 @@ def suppress_stripes_fourier(
 def correct_illumination(gray: np.ndarray, config: PipelineConfig) -> np.ndarray:
     """Correct uneven illumination with the final Fourier-based pipeline."""
 
-    corrected = correct_illumination_fourier(
+    return illumination_steps(gray, config)["corrected"]
+
+
+def illumination_steps(gray: np.ndarray, config: PipelineConfig) -> dict[str, np.ndarray]:
+    """Return each Fourier illumination correction step."""
+
+    fourier_corrected = correct_illumination_fourier(
         gray,
         config.fourier_cutoff,
         config.fourier_low_gain,
         config.fourier_high_gain,
     )
-    return suppress_stripes_fourier(
-        corrected,
+    stripe_suppressed = suppress_stripes_fourier(
+        fourier_corrected,
         config.fourier_stripe_min_frequency,
         config.fourier_stripe_max_frequency,
         config.fourier_stripe_top_k,
         config.fourier_stripe_radius,
         config.fourier_stripe_strength,
     )
+    return {
+        "fourier_corrected": fourier_corrected,
+        "stripe_suppressed": stripe_suppressed,
+        "corrected": stripe_suppressed,
+    }
 
 
 def enhance_contrast(gray: np.ndarray, config: PipelineConfig) -> np.ndarray:
@@ -149,7 +160,19 @@ def preprocess_image(image: np.ndarray, config: PipelineConfig) -> np.ndarray:
     - improve local contrast with CLAHE
     """
 
+    return preprocess_steps(image, config)["enhanced"]
+
+
+def preprocess_steps(image: np.ndarray, config: PipelineConfig) -> dict[str, np.ndarray]:
+    """Return every preprocessing image that should be inspectable in output."""
+
     gray = to_grayscale(image)
     denoised = denoise_image(gray, config.median_kernel_size)
-    corrected = correct_illumination(denoised, config)
-    return enhance_contrast(corrected, config)
+    illumination = illumination_steps(denoised, config)
+    enhanced = enhance_contrast(illumination["corrected"], config)
+    return {
+        "gray": gray,
+        "denoised": denoised,
+        **illumination,
+        "enhanced": enhanced,
+    }

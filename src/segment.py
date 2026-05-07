@@ -86,5 +86,16 @@ def clean_mask(mask: np.ndarray, config: PipelineConfig) -> np.ndarray:
 def segment_grains(preprocessed: np.ndarray, config: PipelineConfig) -> np.ndarray:
     """Return a binary mask of candidate rice grain regions."""
 
+    return segmentation_steps(preprocessed, config)["mask"]
+
+
+def segmentation_steps(preprocessed: np.ndarray, config: PipelineConfig) -> dict[str, np.ndarray]:
+    """Return every segmentation mask that should be inspectable in output."""
+
     raw_mask = threshold_grains(preprocessed, config)
-    return clean_mask(raw_mask, config)
+    cleaned_mask = clean_mask(raw_mask, config)
+    return {
+        "raw_mask": raw_mask,
+        "cleaned_mask": cleaned_mask,
+        "mask": cleaned_mask,
+    }

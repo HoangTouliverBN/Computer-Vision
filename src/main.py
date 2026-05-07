@@ -7,10 +7,14 @@ import sys
 
 from config import DEFAULT_CONFIG, PipelineConfig
 from parameter_log import write_parameter_log
-from preprocess import preprocess_image
-from segment import segment_grains
+from preprocess import preprocess_steps
+from segment import segmentation_steps
 from utils import ensure_output_dirs, list_image_files, read_image, save_results_csv
-from visualize import save_visualizations
+from visualize import (
+    save_preprocess_visualizations,
+    save_segmentation_visualizations,
+    save_visualizations,
+)
 from watershed_count import CountResult, separate_and_count
 
 
@@ -38,9 +42,13 @@ def _process_one_image(image_name: str, config: PipelineConfig) -> CountResult:
 
     image_path = config.dataset_dir / image_name
     image = read_image(image_path)
-    preprocessed = preprocess_image(image, config)
-    mask = segment_grains(preprocessed, config)
+    preprocessing = preprocess_steps(image, config)
+    preprocessed = preprocessing["enhanced"]
+    segmentation = segmentation_steps(preprocessed, config)
+    mask = segmentation["mask"]
     result = separate_and_count(image_path.name, mask, config)
+    save_preprocess_visualizations(image_path.name, preprocessing, config.output_dir)
+    save_segmentation_visualizations(image_path.name, segmentation, config.output_dir)
     save_visualizations(image, mask, result, config.output_dir)
     return result
 

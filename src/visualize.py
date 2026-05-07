@@ -26,6 +26,30 @@ def save_visualizations(
     write_image(output_dir / "contours" / f"{stem}_contours.png", contour_overlay(original, result.labels))
 
 
+def save_preprocess_visualizations(
+    image_name: str,
+    steps: dict[str, np.ndarray],
+    output_dir: Path,
+) -> None:
+    """Save preprocessing images for step-by-step inspection."""
+
+    stem = Path(image_name).stem
+    for step_name, image in steps.items():
+        write_image(output_dir / "intermediate" / f"{stem}_{step_name}.png", image)
+
+
+def save_segmentation_visualizations(
+    image_name: str,
+    steps: dict[str, np.ndarray],
+    output_dir: Path,
+) -> None:
+    """Save threshold and cleaned masks for step-by-step inspection."""
+
+    stem = Path(image_name).stem
+    for step_name, mask in steps.items():
+        write_image(output_dir / "masks" / f"{stem}_{step_name}.png", mask.astype(np.uint8) * 255)
+
+
 def labels_to_uint8(labels: np.ndarray) -> np.ndarray:
     """Convert integer labels to a visible grayscale image."""
 
